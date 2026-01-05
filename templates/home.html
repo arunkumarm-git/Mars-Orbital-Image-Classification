@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mars Orbital Image Classification</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@17/umd/react.development.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@6/babel.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(to right, #2d3b55, #354e6f);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      transition: background 0.5s ease;
+    }
+
+    .container {
+      width: 480px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 15px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+      padding: 40px;
+      text-align: center;
+      animation: fadeIn 1.5s ease-in-out;
+      position: relative;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .container h1 {
+      font-size: 2.2rem;
+      color: #ff9f43;
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-shadow: 0 4px 10px rgba(255, 159, 67, 0.6);
+    }
+
+    .container p {
+      font-size: 1.1rem;
+      color: #ddd;
+      margin-bottom: 25px;
+    }
+
+    select,
+    input[type="file"],
+    button {
+      width: 100%;
+      padding: 14px;
+      margin: 12px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: 'Roboto', sans-serif;
+      outline: none;
+      transition: all 0.3s ease-in-out;
+    }
+
+    select {
+      background: #2f3b4f;
+      color: #fff;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    select:focus {
+      border: 1px solid #ff9f43;
+    }
+
+    input[type="file"] {
+      background: #2f3b4f;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    input[type="file"]::file-selector-button {
+      background: #ff9f43;
+      color: white;
+      padding: 2px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    input[type="file"]::file-selector-button:hover {
+      background: #ff7a36;
+    }
+
+    button {
+      background: #ff9f43;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(255, 159, 67, 0.4);
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+      background: #ff7a36;
+      transform: translateY(-2px);
+    }
+
+    .result {
+      background: #2a343f;
+      margin-top: 25px;
+      padding: 18px;
+      border-radius: 12px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1rem;
+      overflow: auto;
+      max-height: 200px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      text-align: left;
+      color: #ddd;
+    }
+
+    .footer {
+      margin-top: 25px;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    .mars-image {
+      position: absolute;
+      top: -70px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 120px;
+      background: url('/static/A_professional_logo_for_a_Mars_Orbital_Image_Class.jpg') no-repeat center center;
+      background-size: cover;
+      border-radius: 50%;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      border: 4px solid #ff9f43;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    function App() {
+      const models = [
+        "class_weight_InceptionV3_model.h5",
+        "class_weight_ResNet152V2_model.h5",
+        "class_weight_vgg19_model.h5",
+        "glcm_classweight_InceptionV3_model.h5",
+        "glcm_classweight_ResNet152V2_model.h5",
+        "glcm_classweight_vgg19_model.h5",
+        "glcm_InceptionV3_model.h5",
+        "glcm_ResNet152V2_model.h5",
+        "glcm_vgg19_model.h5",
+        "InceptionV3_model.h5",
+        "ResNet152V2_model.h5",
+        "vgg19_model.h5"
+      ];
+
+      const [selectedModel, setSelectedModel] = React.useState("");
+      const [files, setFiles] = React.useState([]);  // Store multiple files
+      const [results, setResults] = React.useState([]);  // Store results
+      const [loading, setLoading] = React.useState(false); // Loading state
+
+      const handleUpload = async () => {
+        if (files.length === 0) {
+          alert("Please select at least one image.");
+          return;
+        }
+
+        setLoading(true); // Show loading indicator
+
+        const formData = new FormData();
+        for (const file of files) {
+          formData.append("images", file);
+        }
+        formData.append("model", selectedModel);
+
+        try {
+          const response = await fetch("http://127.0.0.1:5000/classify", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+          setResults(data);
+        } catch (error) {
+          console.error("Error:", error);
+          alert("An error occurred during classification.");
+        } finally {
+          setLoading(false); // Hide loading indicator
+        }
+      };
+
+      return (
+        <div className="container">
+          <div className="mars-image"></div>
+          <h1>Mars Orbital Classification</h1>
+          <p>Select a model and upload multiple images for classification</p>
+
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+          >
+            <option value="" disabled>Select a model</option>
+            {models.map((model, index) => (
+              <option key={index} value={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+
+          {selectedModel && (
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple  // Allow multiple images
+                onChange={(e) => setFiles([...e.target.files])}
+              />
+              <button onClick={handleUpload} disabled={loading}>
+                {loading ? "Processing..." : "Classify Images"}
+              </button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="loading">
+              <p>⏳ Processing Images... Please wait.</p>
+            </div>
+          )}
+
+          {results.length > 0 && !loading && (
+            <div className="result-container">
+              <div className="result-grid">
+                {results.map((result, index) => (
+                  <div key={index} className="result-card">
+                    <h3>{result.image_name}</h3>
+                    <p><strong>Predicted Class:</strong> {
+                      result.predicted_label === 0 ? 'Bright Dune' :
+                        result.predicted_label === 1 ? 'Crater' :
+                          result.predicted_label === 2 ? 'Dark Dune' :
+                            result.predicted_label === 3 ? 'Impact Ejecta' :
+                              result.predicted_label === 4 ? 'Slope Streak' :
+                                result.predicted_label === 5 ? 'Spider' :
+                                  result.predicted_label === 6 ? 'Swiss Cheese' :
+                                    result.predicted_label === "Unknown 🫥" ? 'Unknown 🫥' :
+                                      'Unknown Class'
+                    }</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="footer">
+            Powered by <span>VIT Students</span>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById("root"));
+  </script>
+
+  <style>
+    .result-container {
+      max-height: 400px;
+      /* Limits height */
+      overflow-y: auto;
+      /* Enables vertical scroll */
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .result-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+
+    .result-card {
+      background: #2a343f;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      font-family: 'Courier New', Courier, monospace;
+      color: #ddd;
+      text-align: left;
+      width: 250px;
+      min-height: 150px;
+    }
+
+    .result-card h3 {
+      color: #ff9f43;
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .result-card p {
+      font-size: 0.95rem;
+      margin: 5px 0;
+    }
+  </style>
+
+
+
+</body>
+
+</html>
